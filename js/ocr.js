@@ -38,12 +38,15 @@ const OCRModule = (() => {
   async function ensureWorker() {
     if (worker) return;
     // Explicit CDN paths prevent auto-detection failures on GitHub Pages.
+    // corePath points to the package directory so the worker can choose
+    // tesseract-core-simd.wasm.js vs tesseract-core.wasm.js based on
+    // whether the device supports WebAssembly SIMD (older phones may not).
     // OEM 1 = LSTM_ONLY (more accurate than legacy OCR).
     worker = await Tesseract.createWorker('eng', 1, {
       logger:     handleLog,
       workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/worker.min.js',
-      langPath:   'https://cdn.jsdelivr.net/npm/tesseract.js-data@4.0.0/traineddata',
-      corePath:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@4/tesseract-core-simd-lstm.wasm.js',
+      langPath:   'https://tessdata.projectnaptha.com/4.0.0',
+      corePath:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@4.0.4',
     });
   }
 
