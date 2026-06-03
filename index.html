@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Scan coffee bags and import to Beanconqueror">
+  <meta name="theme-color" content="#3b1f0e">
+
+  <!-- PWA manifest -->
+  <link rel="manifest" href="manifest.json">
+
+  <!-- iOS home screen support -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BeanScan">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+
+  <title>BeanScan</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ── Header ─────────────────────────────────────────── -->
+  <header class="app-header" role="banner">
+    <h1>☕ BeanScan</h1>
+    <span class="subtitle">Beanconqueror companion</span>
+  </header>
+
+  <!-- ── Mode toggle ────────────────────────────────────── -->
+  <div class="mode-toggle" role="group" aria-label="Entry mode">
+    <button id="btn-mode-scan"   class="active" type="button">📷 Scan Bag</button>
+    <button id="btn-mode-manual" type="button">✏️ Manual Entry</button>
+  </div>
+
+  <!-- ── Main form ──────────────────────────────────────── -->
+  <main>
+    <form id="bean-form" novalidate>
+
+      <!-- Camera / photo section (hidden in manual mode) -->
+      <div id="camera-section" class="camera-section">
+        <!-- Hidden file input — triggers native camera on Android -->
+        <input
+          id="camera-input"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          aria-hidden="true"
+          tabindex="-1"
+        >
+
+        <!-- Photo preview (hidden until photo is taken) -->
+        <img id="photo-preview" alt="Captured coffee bag photo">
+
+        <!-- Placeholder shown before capture -->
+        <div id="photo-placeholder" class="photo-placeholder" aria-hidden="true">
+          <span class="icon">📷</span>
+          <span>Tap to photograph the coffee bag</span>
+        </div>
+
+        <div class="camera-controls">
+          <button type="button" id="btn-capture" class="btn-camera">
+            📷 Take Photo
+          </button>
+          <button type="button" id="btn-retake" class="btn-camera btn-retake hidden">
+            🔄 Retake
+          </button>
+        </div>
+
+        <!-- OCR status / progress message -->
+        <p id="ocr-status" aria-live="polite"></p>
+      </div>
+
+      <!-- ── Core info ──────────────────────────────────── -->
+      <section class="form-section" aria-labelledby="section-core">
+        <h2 class="section-title" id="section-core">Core Info</h2>
+
+        <div class="field">
+          <label for="field-name">Bean / Coffee Name <span aria-hidden="true">*</span></label>
+          <input
+            type="text"
+            id="field-name"
+            placeholder="e.g. Yirgacheffe Natural"
+            autocomplete="off"
+            required
+          >
+        </div>
+
+        <div class="field">
+          <label for="field-roaster">Roaster</label>
+          <input
+            type="text"
+            id="field-roaster"
+            placeholder="Roastery name"
+            autocomplete="off"
+          >
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="field-roasting-date">Roast Date</label>
+            <input type="date" id="field-roasting-date">
+          </div>
+          <div class="field">
+            <label for="field-buy-date">Buy Date</label>
+            <input type="date" id="field-buy-date">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="field-best-date">Best Before</label>
+          <input type="date" id="field-best-date">
+        </div>
+      </section>
+
+      <!-- ── Roast details ──────────────────────────────── -->
+      <section class="form-section" aria-labelledby="section-roast">
+        <h2 class="section-title" id="section-roast">Roast Details</h2>
+
+        <div class="field">
+          <label for="field-roast">Roast Level</label>
+          <select id="field-roast">
+            <option value="0">Unknown</option>
+            <option value="13">Custom (specify below)</option>
+            <option value="1">Cinnamon Roast (very light)</option>
+            <option value="2">American Roast</option>
+            <option value="3">New England Roast</option>
+            <option value="4">Half City Roast</option>
+            <option value="5">Moderate Light Roast</option>
+            <option value="6">City Roast (medium)</option>
+            <option value="7">City+ Roast</option>
+            <option value="8">Full City Roast</option>
+            <option value="9">Full City+ Roast</option>
+            <option value="10">Italian Roast</option>
+            <option value="11">Vienna Roast</option>
+            <option value="12">French Roast (very dark)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="field-roast-custom">Custom Roast Label</label>
+          <input
+            type="text"
+            id="field-roast-custom"
+            placeholder='e.g. "Light-Medium" (used when Roast Level = Custom)'
+          >
+        </div>
+
+        <div class="field">
+          <label for="field-roast-type">Roast Profile</label>
+          <select id="field-roast-type">
+            <option value="0">Unknown</option>
+            <option value="1">Filter / Pour Over</option>
+            <option value="2">Espresso</option>
+            <option value="3">Omni / Omniroast</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="field-bean-mix">Bean Mix</label>
+          <select id="field-bean-mix">
+            <option value="0">Unknown</option>
+            <option value="1">Single Origin</option>
+            <option value="2">Blend</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- ── Origin / Variety ───────────────────────────── -->
+      <section class="form-section" aria-labelledby="section-variety">
+        <h2 class="section-title" id="section-variety">Origin &amp; Variety</h2>
+
+        <!-- Variety entries inserted here by form.js -->
+        <div id="variety-container"></div>
+
+        <button type="button" id="btn-add-variety" class="btn-add-variety">
+          + Add Another Origin
+        </button>
+      </section>
+
+      <!-- ── Additional details ─────────────────────────── -->
+      <section class="form-section" aria-labelledby="section-additional">
+        <h2 class="section-title" id="section-additional">Additional Details</h2>
+
+        <div class="field">
+          <label for="field-aromatics">Tasting Notes / Aromatics</label>
+          <textarea
+            id="field-aromatics"
+            placeholder="e.g. Blueberry, jasmine, dark chocolate"
+            rows="3"
+          ></textarea>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="field-weight">Weight (g)</label>
+            <input type="number" id="field-weight" placeholder="250" min="0" step="1">
+          </div>
+          <div class="field">
+            <label for="field-cost">Cost</label>
+            <input type="number" id="field-cost" placeholder="0.00" min="0" step="0.01">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="field-cupping">Cupping Points / Score</label>
+          <input
+            type="text"
+            id="field-cupping"
+            placeholder="e.g. 87 SCA"
+          >
+        </div>
+
+        <div class="field field-toggle">
+          <label for="field-decaf">Decaffeinated</label>
+          <span class="toggle-switch">
+            <input type="checkbox" id="field-decaf" role="switch">
+            <span class="toggle-slider"></span>
+          </span>
+        </div>
+
+        <div class="field">
+          <label for="field-url">Roaster / Webshop URL</label>
+          <input
+            type="url"
+            id="field-url"
+            placeholder="https://…"
+            inputmode="url"
+          >
+        </div>
+
+        <div class="field">
+          <label for="field-ean">EAN / Barcode</label>
+          <input
+            type="text"
+            id="field-ean"
+            placeholder="Barcode number"
+            inputmode="numeric"
+          >
+        </div>
+      </section>
+
+      <!-- ── Notes ──────────────────────────────────────── -->
+      <section class="form-section" aria-labelledby="section-notes">
+        <h2 class="section-title" id="section-notes">Notes</h2>
+        <div class="field">
+          <label for="field-notes">Free-text Notes</label>
+          <textarea
+            id="field-notes"
+            placeholder="Any additional information (unmapped OCR text will appear here)"
+            rows="4"
+          ></textarea>
+        </div>
+      </section>
+
+      <!-- ── Frozen section (collapsed by default) ──────── -->
+      <section class="form-section" aria-labelledby="section-frozen">
+        <div
+          class="collapsible-header"
+          role="button"
+          tabindex="0"
+          aria-expanded="false"
+          aria-controls="frozen-body"
+        >
+          <h2 class="section-title" id="section-frozen" style="margin-bottom:0">
+            Frozen Storage
+          </h2>
+          <span class="chevron" aria-hidden="true">▼</span>
+        </div>
+
+        <div id="frozen-body" class="collapsible-body" role="region" aria-labelledby="section-frozen">
+          <p style="font-size:13px;color:var(--color-text-muted);margin-bottom:12px">
+            ⚠️ Frozen fields cannot be imported to Beanconqueror via the deep link.
+            You'll be reminded to set them manually in BC after import.
+          </p>
+
+          <div class="field field-toggle">
+            <label for="field-is-frozen">Bean was frozen</label>
+            <span class="toggle-switch">
+              <input type="checkbox" id="field-is-frozen" role="switch">
+              <span class="toggle-slider"></span>
+            </span>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="field-frozen-date">Frozen Date</label>
+              <input type="date" id="field-frozen-date">
+            </div>
+            <div class="field">
+              <label for="field-unfrozen-date">Unfrozen Date</label>
+              <input type="date" id="field-unfrozen-date">
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="field-frozen-storage">Storage Type</label>
+            <select id="field-frozen-storage">
+              <option value="0">Unknown</option>
+              <option value="1">Coffee Bag</option>
+              <option value="2">Coffee Jar</option>
+              <option value="3">Zip Lock</option>
+              <option value="4">Vacuum Sealed</option>
+              <option value="5">Tube</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="field-frozen-note">Frozen Notes</label>
+            <textarea id="field-frozen-note" rows="2" placeholder="Any notes about freezing…"></textarea>
+          </div>
+        </div>
+      </section>
+
+    </form><!-- /bean-form -->
+  </main>
+
+  <!-- ── Sticky action bar ──────────────────────────────── -->
+  <div class="action-bar" role="region" aria-label="Actions">
+    <button type="button" id="btn-add-bc" class="btn-primary">
+      ☕ Add to Beanconqueror
+    </button>
+    <button type="button" id="btn-add-sheet" class="btn-secondary">
+      📊 Sheet Only
+    </button>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Main module (ES module; all other JS imported from here) -->
+  <script type="module" src="js/app.js"></script>
+
+</body>
+</html>
