@@ -1,42 +1,20 @@
 // Service Worker — BeanScan
-// Currently a stub. Session 6 will add full offline caching.
-const CACHE_NAME = 'beanscan-v3';
+// Sessions 1-5: no caching — always fetch from network so JS updates
+// land on devices immediately without needing a cache version bump.
+// Session 6 will introduce proper offline caching with a versioned strategy.
 
-// App shell files to cache for offline use (populated in Session 6)
-const APP_SHELL = [
-  '/',
-  '/index.html',
-  '/css/styles.css',
-  '/js/app.js',
-  '/js/camera.js',
-  '/js/form.js',
-  '/manifest.json'
-];
-
-self.addEventListener('install', event => {
-  // Skip waiting so updated SW activates immediately
-  self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
-  );
-});
+self.addEventListener('install', () => self.skipWaiting());
 
 self.addEventListener('activate', event => {
-  // Remove old caches from previous versions
+  // Clear any leftover caches from earlier experiments
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
-      )
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', event => {
-  // Network-first for now: always try network, fall back to cache
-  event.respondWith(
-    fetch(event.request).catch(() =>
-      caches.match(event.request)
-    )
-  );
+  // Pass every request straight to the network — no caching until Session 6
+  event.respondWith(fetch(event.request));
 });
