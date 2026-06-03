@@ -121,8 +121,6 @@ const OcrUI = (() => {
 // Camera → OCR → form pipeline
 // ----------------------------------------------------------------
 function initCapturePipeline() {
-  // scanId prevents a stale OCR result (from a previous capture) populating
-  // the form if the user taps Retake before OCR finishes.
   let scanId = 0;
 
   CameraModule.onCapture(async file => {
@@ -133,27 +131,35 @@ function initCapturePipeline() {
 
     const thisScan = ++scanId;
 
+    // Show immediately (synchronous) so we know the callback fired
+    OcrUI.setProgress('Photo received — starting OCR…', 1);
+
     try {
       const result = await OCRModule.recognize(file, (label, pct) => {
-        if (scanId !== thisScan) return; // retake happened — ignore
+        if (scanId !== thisScan) return;
         OcrUI.setProgress(label, pct);
       });
 
-      if (scanId !== thisScan) return; // retake happened after OCR finished
+      if (scanId !== thisScan) return;
 
       OcrUI.showResult(result.text, result.confidence, result.wordCount);
-      // Session 3 will pass result.text to the heuristic parser here
     } catch (err) {
       if (scanId !== thisScan) return;
       console.error('OCR failed:', err);
-      OcrUI.showError(
-        err.message.includes('not loaded')
-          ? 'OCR engine loading — please wait a moment and retake the photo.'
-          : 'Couldn\'t extract text. Try a clearer photo or enter details manually.'
-      );
+      const msg = err.message.includes('not loaded')
+        ? 'OCR engine not loaded yet — please wait a moment and retake.'
+        : `OCR error: ${err.message}`;
+      OcrUI.showError(msg);
+      Toast.show(msg, 'error', 6000);
     }
   });
 }
+
+// Catch any unhandled promise rejections and surface them visibly
+window.addEventListener('unhandledrejection', e => {
+  console.error('Unhandled rejection:', e.reason);
+  Toast.show(`Error: ${e.reason?.message ?? e.reason}`, 'error', 6000);
+});
 
 // ----------------------------------------------------------------
 // Action buttons

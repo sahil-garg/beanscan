@@ -217,9 +217,10 @@ main {
 /* OCR status message shown below photo */
 #ocr-status {
   margin-top: var(--space-xs);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  min-height: 20px;
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-accent-mid);
+  min-height: 24px;
   text-align: center;
 }
 
