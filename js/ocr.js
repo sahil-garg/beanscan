@@ -37,16 +37,21 @@ const OCRModule = (() => {
 
   async function ensureWorker() {
     if (worker) return;
-    // Explicit CDN paths prevent auto-detection failures on GitHub Pages.
-    // corePath points to the package directory so the worker can choose
-    // tesseract-core-simd.wasm.js vs tesseract-core.wasm.js based on
-    // whether the device supports WebAssembly SIMD (older phones may not).
+    // The worker is served from our own domain (js/vendor/tesseract-worker.min.js)
+    // so that self.location inside the worker resolves to GitHub Pages, not the
+    // jsDelivr CDN. This matters because the emscripten-compiled core JS uses
+    // self.location to locate the WASM binary — but the binary is embedded as
+    // base64 inside tesseract-core*.wasm.js, so no separate binary fetch occurs.
+    //
+    // workerBlobURL:false — skip Blob URL wrapping, which would set self.location
+    // to blob:... and break the path resolution entirely.
     // OEM 1 = LSTM_ONLY (more accurate than legacy OCR).
     worker = await Tesseract.createWorker('eng', 1, {
-      logger:     handleLog,
-      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/worker.min.js',
-      langPath:   'https://tessdata.projectnaptha.com/4.0.0',
-      corePath:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@4.0.4',
+      logger:          handleLog,
+      workerBlobURL:   false,
+      workerPath:      './js/vendor/tesseract-worker.min.js',
+      langPath:        'https://tessdata.projectnaptha.com/4.0.0',
+      corePath:        'https://cdn.jsdelivr.net/npm/tesseract.js-core@4.0.4',
     });
   }
 
