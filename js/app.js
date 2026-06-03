@@ -1,12 +1,12 @@
 /**
  * app.js — Main app orchestration
  *
- * Wires together camera, form, and (future) OCR / protobuf modules.
- * Session 1: camera capture + form skeleton only.
+ * Wires together camera, OCR, form, and (future) protobuf modules.
  */
 
 import CameraModule from './camera.js';
 import FormModule   from './form.js';
+import OCRModule    from './ocr.js';
 
 // ----------------------------------------------------------------
 // Service worker registration
@@ -68,15 +68,90 @@ function initModeToggle() {
 }
 
 // ----------------------------------------------------------------
-// Camera → (future OCR) → form pipeline
+// OCR progress UI helpers
+// ----------------------------------------------------------------
+const OcrUI = (() => {
+  const statusEl   = () => document.getElementById('ocr-status');
+  const barEl      = () => document.getElementById('ocr-progress-bar');
+  const fillEl     = () => document.getElementById('ocr-progress-fill');
+  const sectionEl  = () => document.getElementById('ocr-output-section');
+  const metaEl     = () => document.getElementById('ocr-meta');
+  const rawTextEl  = () => document.getElementById('ocr-raw-text');
+
+  function setProgress(label, pct) {
+    statusEl().textContent = label;
+    barEl().classList.remove('hidden');
+    fillEl().style.width = `${pct}%`;
+  }
+
+  function showResult(text, confidence, wordCount) {
+    barEl().classList.add('hidden');
+    fillEl().style.width = '0%';
+    statusEl().textContent =
+      `Done — ${wordCount} word${wordCount !== 1 ? 's' : ''} found (${confidence}% confidence)`;
+
+    metaEl().textContent =
+      `${wordCount} words · ${confidence}% confidence`;
+    rawTextEl().textContent = text || '(no text extracted)';
+    sectionEl().classList.remove('hidden');
+    // Scroll the raw text panel into view so the user sees it
+    sectionEl().scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function showError(message) {
+    barEl().classList.add('hidden');
+    fillEl().style.width = '0%';
+    statusEl().textContent = message;
+    sectionEl().classList.add('hidden');
+  }
+
+  function reset() {
+    statusEl().textContent = '';
+    barEl().classList.add('hidden');
+    fillEl().style.width = '0%';
+    sectionEl().classList.add('hidden');
+    rawTextEl().textContent = '';
+    metaEl().textContent = '';
+  }
+
+  return { setProgress, showResult, showError, reset };
+})();
+
+// ----------------------------------------------------------------
+// Camera → OCR → form pipeline
 // ----------------------------------------------------------------
 function initCapturePipeline() {
-  CameraModule.onCapture(file => {
-    if (!file) return; // user cleared the photo
+  // scanId prevents a stale OCR result (from a previous capture) populating
+  // the form if the user taps Retake before OCR finishes.
+  let scanId = 0;
 
-    // Session 2 will replace this stub with Tesseract OCR
-    document.getElementById('ocr-status').textContent =
-      'Photo captured. OCR coming in Session 2…';
+  CameraModule.onCapture(async file => {
+    if (!file) {
+      OcrUI.reset();
+      return;
+    }
+
+    const thisScan = ++scanId;
+
+    try {
+      const result = await OCRModule.recognize(file, (label, pct) => {
+        if (scanId !== thisScan) return; // retake happened — ignore
+        OcrUI.setProgress(label, pct);
+      });
+
+      if (scanId !== thisScan) return; // retake happened after OCR finished
+
+      OcrUI.showResult(result.text, result.confidence, result.wordCount);
+      // Session 3 will pass result.text to the heuristic parser here
+    } catch (err) {
+      if (scanId !== thisScan) return;
+      console.error('OCR failed:', err);
+      OcrUI.showError(
+        err.message.includes('not loaded')
+          ? 'OCR engine loading — please wait a moment and retake the photo.'
+          : 'Couldn\'t extract text. Try a clearer photo or enter details manually.'
+      );
+    }
   });
 }
 

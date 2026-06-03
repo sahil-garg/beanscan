@@ -17,6 +17,9 @@
 
   <title>BeanScan</title>
   <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Tesseract.js OCR engine — loaded async; used only when user captures a photo -->
+  <script async src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 </head>
 <body>
 
@@ -66,9 +69,32 @@
           </button>
         </div>
 
+        <!-- OCR progress bar (hidden until OCR starts) -->
+        <div id="ocr-progress-bar" class="ocr-progress-bar hidden" aria-hidden="true">
+          <div id="ocr-progress-fill" class="ocr-progress-fill"></div>
+        </div>
+
         <!-- OCR status / progress message -->
         <p id="ocr-status" aria-live="polite"></p>
       </div>
+
+      <!-- Raw OCR output — hidden until a scan completes -->
+      <section id="ocr-output-section" class="form-section hidden" aria-labelledby="section-ocr-title">
+        <div
+          class="collapsible-header open"
+          role="button"
+          tabindex="0"
+          aria-expanded="true"
+          aria-controls="ocr-output-body"
+        >
+          <h2 class="section-title" id="section-ocr-title" style="margin-bottom:0">Raw OCR Text</h2>
+          <span class="chevron" aria-hidden="true">▼</span>
+        </div>
+        <div id="ocr-output-body" class="collapsible-body open">
+          <p id="ocr-meta" class="ocr-meta"></p>
+          <pre id="ocr-raw-text" class="ocr-raw-text"></pre>
+        </div>
+      </section>
 
       <!-- ── Core info ──────────────────────────────────── -->
       <section class="form-section" aria-labelledby="section-core">
