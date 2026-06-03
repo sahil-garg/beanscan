@@ -37,8 +37,14 @@ const OCRModule = (() => {
 
   async function ensureWorker() {
     if (worker) return;
-    // OEM 1 = LSTM_ONLY (more accurate than legacy OCR)
-    worker = await Tesseract.createWorker('eng', 1, { logger: handleLog });
+    // Explicit CDN paths prevent auto-detection failures on GitHub Pages.
+    // OEM 1 = LSTM_ONLY (more accurate than legacy OCR).
+    worker = await Tesseract.createWorker('eng', 1, {
+      logger:     handleLog,
+      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/worker.min.js',
+      langPath:   'https://cdn.jsdelivr.net/npm/tesseract.js-data@4.0.0/traineddata',
+      corePath:   'https://cdn.jsdelivr.net/npm/tesseract.js-core@4/tesseract-core-simd-lstm.wasm.js',
+    });
   }
 
   /**

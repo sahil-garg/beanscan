@@ -145,20 +145,23 @@ function initCapturePipeline() {
       OcrUI.showResult(result.text, result.confidence, result.wordCount);
     } catch (err) {
       if (scanId !== thisScan) return;
+      // err may be a string, object, or Error — normalise defensively
+      const errMsg = err?.message ?? String(err) ?? 'Unknown error';
       console.error('OCR failed:', err);
-      const msg = err.message.includes('not loaded')
+      const msg = errMsg.toLowerCase().includes('not loaded')
         ? 'OCR engine not loaded yet — please wait a moment and retake.'
-        : `OCR error: ${err.message}`;
+        : `OCR error: ${errMsg}`;
       OcrUI.showError(msg);
-      Toast.show(msg, 'error', 6000);
+      Toast.show(msg, 'error', 8000);
     }
   });
 }
 
 // Catch any unhandled promise rejections and surface them visibly
 window.addEventListener('unhandledrejection', e => {
+  const msg = e.reason?.message ?? String(e.reason) ?? 'Unknown error';
   console.error('Unhandled rejection:', e.reason);
-  Toast.show(`Error: ${e.reason?.message ?? e.reason}`, 'error', 6000);
+  Toast.show(`Unhandled error: ${msg}`, 'error', 8000);
 });
 
 // ----------------------------------------------------------------
