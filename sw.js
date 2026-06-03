@@ -1,6 +1,6 @@
 // Service Worker — BeanScan
 // Currently a stub. Session 6 will add full offline caching.
-const CACHE_NAME = 'beanscan-v2';
+const CACHE_NAME = 'beanscan-v3';
 
 // App shell files to cache for offline use (populated in Session 6)
 const APP_SHELL = [
