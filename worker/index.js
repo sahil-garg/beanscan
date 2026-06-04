@@ -17,7 +17,7 @@
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin':  '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, x-api-key, anthropic-version, anthropic-dangerous-request-browser',
+  'Access-Control-Allow-Headers': 'Content-Type, x-api-key, anthropic-version, anthropic-dangerous-direct-browser-access',
   'Access-Control-Max-Age':       '86400',
 };
 
