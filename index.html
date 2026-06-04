@@ -376,6 +376,15 @@
         </p>
 
         <div class="field" style="margin-top: 16px">
+          <label for="settings-proxy-url">Proxy URL</label>
+          <input type="url" id="settings-proxy-url" placeholder="https://beanscan-proxy.YOUR_NAME.workers.dev" autocomplete="off" spellcheck="false">
+          <p class="settings-hint">
+            Cloudflare Worker URL that proxies to the Anthropic API.
+            See <code>worker/index.js</code> in the repo for setup instructions.
+          </p>
+        </div>
+
+        <div class="field" style="margin-top: 16px">
           <label for="settings-api-key">Anthropic API Key</label>
           <div class="apikey-row">
             <input type="password" id="settings-api-key" placeholder="sk-ant-…" autocomplete="off" spellcheck="false">

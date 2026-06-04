@@ -60,8 +60,8 @@ For blends, return multiple objects in bean_information. Be conservative — onl
 
 const LLMParserModule = (() => {
 
-  async function parse(ocrText, apiKey) {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+  async function parse(ocrText, apiKey, proxyUrl) {
+    const response = await fetch(proxyUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

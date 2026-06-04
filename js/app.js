@@ -165,7 +165,7 @@ function initCapturePipeline() {
       if (SettingsModule.isLLMEnabled()) {
         OcrUI.setProgress('Parsing with AI…', 99);
         try {
-          parsed = await LLMParser.parse(result.text, SettingsModule.getAPIKey());
+          parsed = await LLMParser.parse(result.text, SettingsModule.getAPIKey(), SettingsModule.getProxyUrl());
         } catch (llmErr) {
           const msg = llmErr?.message ?? String(llmErr);
           console.error('LLM parser failed:', llmErr);
