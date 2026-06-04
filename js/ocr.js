@@ -1,26 +1,28 @@
 /**
- * ocr.js — Tesseract.js wrapper
+ * ocr.js — Tesseract.js v5 wrapper
  *
- * Manages one long-lived worker (expensive to init — ~5s + ~10MB language
- * download the first time). Subsequent scans reuse the same worker and
- * skip the init phase, so they complete in 2-5s instead of 10s.
+ * One long-lived worker per session. First scan ~10s (language data download);
+ * subsequent scans ~2-5s (worker already warm).
  *
- * Tesseract is loaded as a global from the CDN <script> in index.html.
- * This module only uses it asynchronously (on first recognize() call),
- * so there's no race with the CDN script loading.
+ * Both the worker script and the WASM core are served from our own domain
+ * (js/vendor/) so that self.location inside the worker resolves to our
+ * GitHub Pages origin. This is critical: the emscripten-compiled core uses
+ * self.location to locate its binary — and corePath must point to the exact
+ * .js file (not a directory) so Tesseract doesn't try to load a SIMD variant
+ * that may not exist or may load from the wrong origin.
+ *
+ * OEM 1 = LSTM_ONLY (neural-net engine, more accurate on modern traineddata).
  */
 
 const OCRModule = (() => {
   let worker = null;
-  let currentProgressFn = null; // updated each call; worker's logger uses this ref
+  let currentProgressFn = null;
 
-  // Maps Tesseract's internal status strings to user-facing labels
   const STATUS_LABELS = {
     'loading tesseract core':       'Loading OCR engine…',
     'initializing tesseract':       'Initializing…',
     'loading language traineddata': 'Loading language data…',
     'initializing api':             'Almost ready…',
-    'recognizing text':             null, // built dynamically with %
   };
 
   function handleLog(m) {
@@ -37,21 +39,15 @@ const OCRModule = (() => {
 
   async function ensureWorker() {
     if (worker) return;
-    // The worker is served from our own domain (js/vendor/tesseract-worker.min.js)
-    // so that self.location inside the worker resolves to GitHub Pages, not the
-    // jsDelivr CDN. This matters because the emscripten-compiled core JS uses
-    // self.location to locate the WASM binary — but the binary is embedded as
-    // base64 inside tesseract-core*.wasm.js, so no separate binary fetch occurs.
-    //
-    // workerBlobURL:false — skip Blob URL wrapping, which would set self.location
-    // to blob:... and break the path resolution entirely.
-    // OEM 1 = LSTM_ONLY (more accurate than legacy OCR).
     worker = await Tesseract.createWorker('eng', 1, {
-      logger:          handleLog,
-      workerBlobURL:   false,
-      workerPath:      './js/vendor/tesseract-worker.min.js',
-      langPath:        'https://tessdata.projectnaptha.com/4.0.0',
-      corePath:        'https://cdn.jsdelivr.net/npm/tesseract.js-core@4.0.4',
+      logger:        handleLog,
+      workerBlobURL: false,
+      // Both files served from our domain — avoids cross-origin self.location issues
+      workerPath:    './js/vendor/tesseract-worker.min.js',
+      // Point at the exact file, not the directory, so Tesseract skips SIMD detection
+      // and loads exactly this file (WASM binary is embedded as base64 inside it)
+      corePath:      './js/vendor/tesseract-core-lstm.wasm.js',
+      langPath:      'https://tessdata.projectnaptha.com/4.0.0',
     });
   }
 
@@ -67,7 +63,6 @@ const OCRModule = (() => {
         'OCR engine not loaded yet — check your internet connection and try again.'
       );
     }
-
     currentProgressFn = onProgress;
     try {
       await ensureWorker();

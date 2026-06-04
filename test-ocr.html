@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BeanScan — OCR Self-Test</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 16px; background: #f9f5f0; }
+    h1   { color: #3b1f0e; }
+    .suite { border: 1px solid #ccc; border-radius: 8px; padding: 16px; margin: 16px 0; background: #fff; }
+    .suite h2 { margin: 0 0 12px; font-size: 1rem; color: #555; }
+    .test  { display: flex; align-items: baseline; gap: 8px; margin: 6px 0; font-size: 14px; }
+    .badge { display: inline-block; min-width: 70px; padding: 2px 8px; border-radius: 4px;
+             font-size: 12px; font-weight: 600; text-align: center; }
+    .pass  { background: #d4edda; color: #155724; }
+    .fail  { background: #f8d7da; color: #721c24; }
+    .wait  { background: #fff3cd; color: #856404; }
+    .log   { font-family: monospace; font-size: 12px; background: #f0ebe5; border-radius: 4px;
+             padding: 10px; white-space: pre-wrap; max-height: 200px; overflow-y: auto; margin-top: 10px; }
+    #summary { font-weight: 700; font-size: 1.1rem; padding: 12px; border-radius: 6px; margin-top: 20px; }
+    .summary-pass { background: #d4edda; color: #155724; }
+    .summary-fail { background: #f8d7da; color: #721c24; }
+    button { padding: 10px 20px; background: #3b1f0e; color: #fff; border: none; border-radius: 6px;
+             font-size: 15px; cursor: pointer; margin-top: 8px; }
+    button:disabled { opacity: .5; cursor: default; }
+    canvas { display: none; }
+  </style>
+</head>
+<body>
+<h1>BeanScan — OCR Self-Test</h1>
+<p style="color:#555">Runs automatically. Tests in <strong>Suite 1</strong> are instant (no network).
+Tests in <strong>Suite 2</strong> require the Tesseract CDN script to load — allow ~30s on first run.</p>
+
+<div class="suite" id="suite-static">
+  <h2>Suite 1 — Static checks (vendor files, script tag)</h2>
+</div>
+
+<div class="suite" id="suite-ocr">
+  <h2>Suite 2 — Live OCR (initialises worker, runs a real scan)</h2>
+  <div id="ocr-log" class="log">Waiting for Tesseract global to load…</div>
+</div>
+
+<div id="summary"></div>
+<button id="btn-rerun">Re-run all tests</button>
+
+<!-- Tesseract v5 (same tag as index.html) -->
+<script async src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<canvas id="canvas"></canvas>
+
+<script type="module">
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+const results = [];
+
+function addResult(suiteId, label, passed, detail = '') {
+  const badge = document.createElement('span');
+  badge.className = 'badge ' + (passed ? 'pass' : 'fail');
+  badge.textContent = passed ? 'PASS' : 'FAIL';
+
+  const row = document.createElement('div');
+  row.className = 'test';
+  row.appendChild(badge);
+  row.appendChild(document.createTextNode(' ' + label));
+  if (detail) {
+    const d = document.createElement('span');
+    d.style.color = '#888';
+    d.style.fontSize = '12px';
+    d.textContent = '— ' + detail;
+    row.appendChild(d);
+  }
+  document.getElementById(suiteId).appendChild(row);
+  results.push(passed);
+  updateSummary();
+}
+
+function log(msg) {
+  const el = document.getElementById('ocr-log');
+  el.textContent += '\n' + msg;
+  el.scrollTop = el.scrollHeight;
+}
+
+function updateSummary() {
+  const total   = results.length;
+  const passing = results.filter(Boolean).length;
+  const el = document.getElementById('summary');
+  const allDone = false; // updated at end
+  el.textContent = `${passing} / ${total} tests passing`;
+  el.className = passing === total ? 'summary-pass' : 'summary-fail';
+}
+
+// ── Suite 1: static checks ────────────────────────────────────────────────────
+
+async function runStaticSuite() {
+  // 1a. worker file exists and is served from our domain
+  try {
+    const res = await fetch('./js/vendor/tesseract-worker.min.js');
+    const text = await res.text();
+    addResult('suite-static',
+      'vendor/tesseract-worker.min.js is fetchable',
+      res.ok && text.length > 1000,
+      `${(text.length / 1024).toFixed(0)} KB, status ${res.status}`
+    );
+  } catch (e) {
+    addResult('suite-static', 'vendor/tesseract-worker.min.js is fetchable', false, e.message);
+  }
+
+  // 1b. core WASM file exists
+  try {
+    const res = await fetch('./js/vendor/tesseract-core-lstm.wasm.js');
+    // Don't read the full 3.9 MB — just check header
+    const reader = res.body.getReader();
+    const { value } = await reader.read();
+    reader.cancel();
+    const snippet = new TextDecoder().decode(value.slice(0, 100));
+    const ok = res.ok && snippet.length > 0;
+    addResult('suite-static',
+      'vendor/tesseract-core-lstm.wasm.js is fetchable',
+      ok,
+      `status ${res.status}, first bytes: ${snippet.slice(0, 50).replace(/\n/g, '↵')}`
+    );
+  } catch (e) {
+    addResult('suite-static', 'vendor/tesseract-core-lstm.wasm.js is fetchable', false, e.message);
+  }
+
+  // 1c. ocr.js imports cleanly and exports a recognize function
+  try {
+    const mod = await import('./js/ocr.js');
+    const hasRecognize = typeof mod.default?.recognize === 'function';
+    addResult('suite-static',
+      'ocr.js exports default.recognize function',
+      hasRecognize,
+      hasRecognize ? 'ok' : 'got: ' + JSON.stringify(Object.keys(mod))
+    );
+  } catch (e) {
+    addResult('suite-static', 'ocr.js exports default.recognize function', false, e.message);
+  }
+
+  // 1d. index.html references tesseract.js@5 (not @4)
+  try {
+    const res = await fetch('./index.html');
+    const html = await res.text();
+    const hasV5 = /tesseract\.js@5/.test(html);
+    const hasV4 = /tesseract\.js@4/.test(html);
+    addResult('suite-static',
+      'index.html uses tesseract.js@5 (not @4)',
+      hasV5 && !hasV4,
+      hasV5 ? 'found @5' : 'missing @5' + (hasV4 ? ', still has @4!' : '')
+    );
+  } catch (e) {
+    addResult('suite-static', 'index.html uses tesseract.js@5 (not @4)', false, e.message);
+  }
+
+  // 1e. corePath in ocr.js points to the exact file (not a directory)
+  try {
+    const res = await fetch('./js/ocr.js');
+    const src = await res.text();
+    const hasCoreFile = /corePath.*tesseract-core-lstm\.wasm\.js/.test(src);
+    const hasCoreDir  = /corePath.*tesseract\.js-core/.test(src);
+    addResult('suite-static',
+      'ocr.js corePath points to local .wasm.js file',
+      hasCoreFile && !hasCoreDir,
+      hasCoreFile ? 'points to ./js/vendor/tesseract-core-lstm.wasm.js' : 'corePath value looks wrong — check ocr.js'
+    );
+  } catch (e) {
+    addResult('suite-static', 'ocr.js corePath points to local .wasm.js file', false, e.message);
+  }
+}
+
+// ── Suite 2: live OCR ─────────────────────────────────────────────────────────
+
+// Generate a small test image with known text using Canvas
+function makeTestImage(text) {
+  const canvas = document.getElementById('canvas');
+  canvas.width  = 400;
+  canvas.height = 80;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 400, 80);
+  ctx.fillStyle = '#000';
+  ctx.font = '28px Arial';
+  ctx.fillText(text, 20, 52);
+  return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+}
+
+async function waitForTesseract(timeoutMs = 20000) {
+  const start = Date.now();
+  while (typeof Tesseract === 'undefined') {
+    if (Date.now() - start > timeoutMs) throw new Error('Tesseract CDN script timed out');
+    await new Promise(r => setTimeout(r, 200));
+  }
+}
+
+async function runOCRSuite() {
+  log('Waiting for Tesseract global (CDN script)…');
+  try {
+    await waitForTesseract();
+    log('Tesseract global found: ' + (typeof Tesseract));
+    addResult('suite-ocr', 'Tesseract global loads from CDN', true, 'typeof Tesseract = ' + typeof Tesseract);
+  } catch (e) {
+    addResult('suite-ocr', 'Tesseract global loads from CDN', false, e.message);
+    log('ABORT: Tesseract never loaded — skipping remaining OCR tests.');
+    return;
+  }
+
+  // 2b. createWorker succeeds (core initialises)
+  log('Creating Tesseract worker (first init ~10s)…');
+  let tesseractWorker = null;
+  try {
+    tesseractWorker = await Tesseract.createWorker('eng', 1, {
+      logger: m => {
+        const pct = Math.round((m.progress || 0) * 100);
+        log(`  [${m.status}] ${pct}%`);
+      },
+      workerBlobURL: false,
+      workerPath:    './js/vendor/tesseract-worker.min.js',
+      corePath:      './js/vendor/tesseract-core-lstm.wasm.js',
+      langPath:      'https://tessdata.projectnaptha.com/4.0.0',
+    });
+    addResult('suite-ocr', 'createWorker resolves without error', true);
+    log('Worker created successfully.');
+  } catch (e) {
+    addResult('suite-ocr', 'createWorker resolves without error', false, e.message);
+    log('Worker creation failed: ' + e.message);
+    return;
+  }
+
+  // 2c. recognize() returns non-empty text on a canvas-generated image
+  const TEST_TEXT = 'Ethiopia Natural';
+  log(`Running recognize() on synthetic image: "${TEST_TEXT}"…`);
+  try {
+    const blob = await makeTestImage(TEST_TEXT);
+    const { data } = await tesseractWorker.recognize(blob);
+    const extracted = (data.text || '').trim();
+    const found     = extracted.toLowerCase().includes('ethiopia') ||
+                      extracted.toLowerCase().includes('natural');
+    log('Extracted text: ' + JSON.stringify(extracted));
+    log('Confidence: ' + Math.round(data.confidence) + '%');
+    addResult('suite-ocr',
+      'recognize() extracts known text from image',
+      found,
+      found ? `"${extracted}"` : `got "${extracted}", expected to contain "Ethiopia" or "Natural"`
+    );
+
+    // 2d. confidence is reasonable (>20% — canvas text is very clean)
+    addResult('suite-ocr',
+      'Confidence > 20%',
+      data.confidence > 20,
+      Math.round(data.confidence) + '%'
+    );
+  } catch (e) {
+    addResult('suite-ocr', 'recognize() extracts known text from image', false, e.message);
+    log('recognize() error: ' + e.message);
+  }
+
+  await tesseractWorker.terminate();
+  log('Worker terminated. All OCR tests done.');
+}
+
+// ── run ───────────────────────────────────────────────────────────────────────
+
+async function runAll() {
+  results.length = 0;
+  document.getElementById('suite-static').querySelectorAll('.test').forEach(el => el.remove());
+  document.getElementById('suite-ocr').querySelectorAll('.test').forEach(el => el.remove());
+  document.getElementById('ocr-log').textContent = 'Waiting for Tesseract global to load…';
+  document.getElementById('btn-rerun').disabled = true;
+
+  await runStaticSuite();
+  await runOCRSuite();
+
+  const total   = results.length;
+  const passing = results.filter(Boolean).length;
+  const el = document.getElementById('summary');
+  el.textContent = `${passing} / ${total} tests passing — ${passing === total ? 'ALL PASS ✓' : 'SOME FAILED ✗'}`;
+  el.className   = passing === total ? 'summary-pass' : 'summary-fail';
+  document.getElementById('btn-rerun').disabled = false;
+}
+
+document.getElementById('btn-rerun').addEventListener('click', runAll);
+runAll();
+</script>
+</body>
+</html>
