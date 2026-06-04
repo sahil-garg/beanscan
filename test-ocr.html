@@ -35,8 +35,12 @@ Tests in <strong>Suite 2</strong> require the Tesseract CDN script to load — a
   <h2>Suite 1 — Static checks (vendor files, script tag)</h2>
 </div>
 
+<div class="suite" id="suite-parser">
+  <h2>Suite 2 — Parser unit tests (instant, no network)</h2>
+</div>
+
 <div class="suite" id="suite-ocr">
-  <h2>Suite 2 — Live OCR (initialises worker, runs a real scan)</h2>
+  <h2>Suite 3 — Live OCR (initialises worker, runs a real scan)</h2>
   <div id="ocr-log" class="log">Waiting for Tesseract global to load…</div>
 </div>
 
@@ -166,7 +170,106 @@ async function runStaticSuite() {
   }
 }
 
-// ── Suite 2: live OCR ─────────────────────────────────────────────────────────
+// ── Suite 2: parser unit tests ───────────────────────────────────────────────
+
+async function runParserSuite() {
+  let ParserModule;
+  try {
+    const mod = await import('./js/parser.js');
+    ParserModule = mod.default;
+    addResult('suite-parser', 'parser.js imports cleanly', true);
+  } catch (e) {
+    addResult('suite-parser', 'parser.js imports cleanly', false, e.message);
+    return;
+  }
+
+  const { parse } = ParserModule;
+
+  function check(label, got, expected) {
+    const pass = got === expected;
+    addResult('suite-parser', label, pass,
+      pass ? String(got) : `got "${got}", expected "${expected}"`);
+  }
+
+  // ── Test 1: labeled-field bag ──────────────────────────────────────────────
+  const labeled = `
+SPECIALTY ROASTERS
+Origin: Ethiopia
+Region: Yirgacheffe
+Variety: Heirloom
+Process: Washed
+Elevation: 1800-2100 masl
+Tasting Notes: Blueberry, jasmine, lemon
+Roaster: Blue Bottle Coffee
+Roasted: 15.03.2024
+250g
+Single Origin
+`.trim();
+
+  const r1 = parse(labeled);
+  check('labeled: country', r1.bean_information[0].country, 'Ethiopia');
+  check('labeled: region', r1.bean_information[0].region, 'Yirgacheffe');
+  check('labeled: variety', r1.bean_information[0].variety, 'Heirloom');
+  check('labeled: processing', r1.bean_information[0].processing, 'Washed');
+  check('labeled: elevation', r1.bean_information[0].elevation, '1800-2100 masl');
+  check('labeled: aromatics', r1.aromatics, 'Blueberry, jasmine, lemon');
+  check('labeled: roaster', r1.roaster, 'Blue Bottle Coffee');
+  check('labeled: roastingDate', r1.roastingDate, '2024-03-15');
+  check('labeled: weight', r1.weight, 250);
+  check('labeled: beanMix', r1.beanMix, 1);
+
+  // ── Test 2: unlabeled vocabulary bag ──────────────────────────────────────
+  const unlabeled = `
+COLOMBIA HUILA
+Natural
+Bourbon
+1500 masl
+Filter Roast
+Organic
+200g
+`.trim();
+
+  const r2 = parse(unlabeled);
+  check('vocab: country', r2.bean_information[0].country, 'Colombia');
+  check('vocab: processing', r2.bean_information[0].processing, 'Natural');
+  check('vocab: variety', r2.bean_information[0].variety, 'Bourbon');
+  check('vocab: elevation contains 1500', r2.bean_information[0].elevation.includes('1500'), true);
+  check('vocab: bean_roasting_type = Filter (1)', r2.bean_roasting_type, 1);
+  check('vocab: certification', r2.bean_information[0].certification, 'Organic');
+  check('vocab: weight', r2.weight, 200);
+
+  // ── Test 3: roast level mapping ───────────────────────────────────────────
+  const r3a = parse('Light Roast Ethiopia');
+  check('roast: Light Roast → enum 13', r3a.roast, 13);
+
+  const r3b = parse('Full City+ Colombia');
+  check('roast: Full City+ → enum 7', r3b.roast, 7);
+
+  const r3c = parse('Espresso Blend Colombia Brazil');
+  check('roast: Espresso type → 2', r3c.bean_roasting_type, 2);
+  check('roast: Blend → beanMix 2', r3c.beanMix, 2);
+
+  // ── Test 4: "Natural" in tasting notes NOT consumed as processing ─────────
+  const r4 = parse('Tasting Notes: Natural sweetness, cherry\nEthiopia Washed');
+  check('tasting: aromatics extracted', r4.aromatics, 'Natural sweetness, cherry');
+  check('tasting: processing is Washed not Natural', r4.bean_information[0].processing, 'Washed');
+
+  // ── Test 5: decaf + URL ───────────────────────────────────────────────────
+  const r5 = parse('Decaffeinated Ethiopia Natural\nhttps://example-roasters.com/shop');
+  check('decaf: flag set', r5.decaffeinated, true);
+  check('url: extracted', r5.url, 'https://example-roasters.com/shop');
+
+  // ── Test 6: empty input ───────────────────────────────────────────────────
+  const r6 = parse('');
+  check('empty: name is blank', r6.name, '');
+  check('empty: weight is 0', r6.weight, 0);
+
+  // ── Test 7: name auto-construction ───────────────────────────────────────
+  const r7 = parse('Kenya\nNatural\n100g');
+  check('name: country + processing', r7.name, 'Kenya Natural');
+}
+
+// ── Suite 3: live OCR ─────────────────────────────────────────────────────────
 
 // Generate a small test image with known text using Canvas
 function makeTestImage(text) {
@@ -260,12 +363,14 @@ async function runOCRSuite() {
 
 async function runAll() {
   results.length = 0;
-  document.getElementById('suite-static').querySelectorAll('.test').forEach(el => el.remove());
-  document.getElementById('suite-ocr').querySelectorAll('.test').forEach(el => el.remove());
+  ['suite-static', 'suite-parser', 'suite-ocr'].forEach(id =>
+    document.getElementById(id).querySelectorAll('.test').forEach(el => el.remove())
+  );
   document.getElementById('ocr-log').textContent = 'Waiting for Tesseract global to load…';
   document.getElementById('btn-rerun').disabled = true;
 
   await runStaticSuite();
+  await runParserSuite();
   await runOCRSuite();
 
   const total   = results.length;

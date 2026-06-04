@@ -4,9 +4,10 @@
  * Wires together camera, OCR, form, and (future) protobuf modules.
  */
 
-import CameraModule from './camera.js';
-import FormModule   from './form.js';
-import OCRModule    from './ocr.js';
+import CameraModule  from './camera.js';
+import FormModule    from './form.js';
+import OCRModule     from './ocr.js';
+import ParserModule  from './parser.js';
 
 // ----------------------------------------------------------------
 // Service worker registration
@@ -143,6 +144,10 @@ function initCapturePipeline() {
       if (scanId !== thisScan) return;
 
       OcrUI.showResult(result.text, result.confidence, result.wordCount);
+
+      // Parse OCR text → structured fields → pre-fill the review form
+      const parsed = ParserModule.parse(result.text);
+      FormModule.populate(parsed);
     } catch (err) {
       if (scanId !== thisScan) return;
       // err may be a string, object, or Error — normalise defensively
