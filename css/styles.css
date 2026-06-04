@@ -584,6 +584,135 @@ main {
   to { transform: rotate(360deg); }
 }
 
+/* ---- Settings gear button (in header) -------------------- */
+.btn-settings-icon {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.85);
+  font-size: 22px;
+  line-height: 1;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.btn-settings-icon:active {
+  background: rgba(255,255,255,0.15);
+}
+
+/* Hide subtitle on small screens when gear is present to avoid overflow */
+@media (max-width: 360px) {
+  .app-header .subtitle { display: none; }
+}
+
+/* ---- Modal ----------------------------------------------- */
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 100;
+  align-items: flex-end;   /* sheet slides up from bottom on mobile */
+  justify-content: center;
+  padding: var(--space-md);
+}
+
+.modal-backdrop.open {
+  display: flex;
+}
+
+.modal-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 480px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal-header h2 {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--color-text-muted);
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.modal-body {
+  padding: var(--space-md);
+}
+
+.modal-footer {
+  padding: var(--space-sm) var(--space-md) var(--space-md);
+}
+
+/* API key input + show/hide button side by side */
+.apikey-row {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.apikey-row input {
+  flex: 1;
+  min-height: var(--touch-min);
+  padding: var(--space-sm);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-base);
+  font-family: monospace;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.btn-apikey-toggle {
+  min-height: var(--touch-min);
+  padding: 0 var(--space-sm);
+  background: var(--color-bg);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.settings-hint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  margin-top: var(--space-xs);
+}
+
+.settings-hint a {
+  color: var(--color-accent-mid);
+}
+
 /* ---- Utilities ------------------------------------------- */
 .hidden {
   display: none !important;

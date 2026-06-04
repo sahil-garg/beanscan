@@ -27,6 +27,7 @@
   <header class="app-header" role="banner">
     <h1>☕ BeanScan</h1>
     <span class="subtitle">Beanconqueror companion</span>
+    <button id="btn-settings" type="button" class="btn-settings-icon" aria-label="Settings">⚙️</button>
   </header>
 
   <!-- ── Mode toggle ────────────────────────────────────── -->
@@ -352,6 +353,46 @@
 
   <!-- Toast notification -->
   <div id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Settings modal -->
+  <div id="settings-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="settings-title">Settings</h2>
+        <button id="settings-close" type="button" class="modal-close" aria-label="Close">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="field field-toggle">
+          <label for="settings-llm-toggle">AI-assisted parsing</label>
+          <span class="toggle-switch">
+            <input type="checkbox" id="settings-llm-toggle" role="switch">
+            <span class="toggle-slider"></span>
+          </span>
+        </div>
+        <p class="settings-hint">
+          Uses Claude Haiku to extract fields from OCR text. Much more accurate
+          on unusual layouts, mixed languages, and stylised bag fonts. Costs ~$0.001 per scan.
+        </p>
+
+        <div class="field" style="margin-top: 16px">
+          <label for="settings-api-key">Anthropic API Key</label>
+          <div class="apikey-row">
+            <input type="password" id="settings-api-key" placeholder="sk-ant-…" autocomplete="off" spellcheck="false">
+            <button type="button" id="settings-apikey-toggle" class="btn-apikey-toggle">Show</button>
+          </div>
+          <p class="settings-hint">
+            Stored on this device only. Get a key at
+            <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a>.
+          </p>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="settings-save" type="button" class="btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Main module (ES module; all other JS imported from here) -->
   <script type="module" src="js/app.js"></script>

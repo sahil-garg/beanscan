@@ -8,6 +8,8 @@ import CameraModule  from './camera.js';
 import FormModule    from './form.js';
 import OCRModule     from './ocr.js';
 import ParserModule  from './parser.js';
+import LLMParser     from './llm-parser.js';
+import SettingsModule from './settings.js';
 
 // ----------------------------------------------------------------
 // Service worker registration
@@ -146,8 +148,23 @@ function initCapturePipeline() {
       OcrUI.showResult(result.text, result.confidence, result.wordCount);
 
       // Parse OCR text → structured fields → pre-fill the review form
-      const parsed = ParserModule.parse(result.text);
+      let parsed;
+      if (SettingsModule.isLLMEnabled()) {
+        OcrUI.setProgress('Parsing with AI…', 99);
+        try {
+          parsed = await LLMParser.parse(result.text, SettingsModule.getAPIKey());
+        } catch (llmErr) {
+          console.warn('LLM parser failed, falling back to heuristics:', llmErr);
+          Toast.show('AI parsing failed — using heuristic parser', 'error', 5000);
+          parsed = ParserModule.parse(result.text);
+        }
+      } else {
+        parsed = ParserModule.parse(result.text);
+      }
       FormModule.populate(parsed);
+      // Clear the progress bar now that parsing is complete
+      document.getElementById('ocr-progress-bar')?.classList.add('hidden');
+      document.getElementById('ocr-progress-fill').style.width = '0%';
     } catch (err) {
       if (scanId !== thisScan) return;
       // err may be a string, object, or Error — normalise defensively
@@ -220,6 +237,7 @@ function initNavigationGuard() {
 document.addEventListener('DOMContentLoaded', () => {
   CameraModule.init();
   FormModule.init();
+  SettingsModule.init();
   initModeToggle();
   initCapturePipeline();
   initActionButtons();
