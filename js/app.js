@@ -82,9 +82,20 @@ const OcrUI = (() => {
   const rawTextEl  = () => document.getElementById('ocr-raw-text');
 
   function setProgress(label, pct) {
-    statusEl().textContent = label;
+    const s = statusEl();
+    s.textContent = label;
+    s.classList.remove('ocr-status-error');
     barEl().classList.remove('hidden');
     fillEl().style.width = `${pct}%`;
+  }
+
+  // Show a persistent warning without hiding the raw OCR text panel
+  function showWarning(message) {
+    barEl().classList.add('hidden');
+    fillEl().style.width = '0%';
+    const s = statusEl();
+    s.textContent = message;
+    s.classList.add('ocr-status-error');
   }
 
   function showResult(text, confidence, wordCount) {
@@ -109,7 +120,9 @@ const OcrUI = (() => {
   }
 
   function reset() {
-    statusEl().textContent = '';
+    const s = statusEl();
+    s.textContent = '';
+    s.classList.remove('ocr-status-error');
     barEl().classList.add('hidden');
     fillEl().style.width = '0%';
     sectionEl().classList.add('hidden');
@@ -117,7 +130,7 @@ const OcrUI = (() => {
     metaEl().textContent = '';
   }
 
-  return { setProgress, showResult, showError, reset };
+  return { setProgress, showResult, showError, showWarning, reset };
 })();
 
 // ----------------------------------------------------------------
@@ -154,8 +167,9 @@ function initCapturePipeline() {
         try {
           parsed = await LLMParser.parse(result.text, SettingsModule.getAPIKey());
         } catch (llmErr) {
-          console.warn('LLM parser failed, falling back to heuristics:', llmErr);
-          Toast.show('AI parsing failed — using heuristic parser', 'error', 5000);
+          const msg = llmErr?.message ?? String(llmErr);
+          console.error('LLM parser failed:', llmErr);
+          OcrUI.showWarning(`⚠️ AI parsing failed: ${msg} — form filled with heuristic parser instead.`);
           parsed = ParserModule.parse(result.text);
         }
       } else {

@@ -224,6 +224,12 @@ main {
   text-align: center;
 }
 
+#ocr-status.ocr-status-error {
+  color: var(--color-error);
+  font-size: var(--font-size-sm);
+  text-align: left;
+}
+
 /* Raw OCR debug panel */
 .ocr-meta {
   font-size: var(--font-size-sm);
