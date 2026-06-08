@@ -226,14 +226,12 @@ function initActionButtons() {
     }
 
     try {
-      const { shareUrl } = ProtobufModule.buildShareUrl(data);
-      console.log('[BeanScan] BC share URL:', shareUrl);
+      const url = ProtobufModule.buildShareUrl(data);
+      console.log('[BeanScan] BC share URL:', url);
 
-      // Use https://beanconqueror.com?shareUserBean0=... — the same format
-      // BC's own share service generates. Android routes this URL directly to
-      // BC via App Links (no Chrome Custom Tab intermediary), which avoids
-      // the CCT back-press that was immediately dismissing the import modal.
-      window.open(shareUrl, '_blank');
+      // https://beanconqueror.com?shareUserBean0=... — BC's own share format.
+      // Android App Links routes this directly to BC without a Chrome Custom Tab.
+      window.open(url, '_blank');
 
       Toast.show('Opening Beanconqueror…', '', 3000);
 
@@ -255,11 +253,8 @@ function initActionButtons() {
       return;
     }
     try {
-      const { shareUrl } = ProtobufModule.buildShareUrl(data);
-      // shareUrl is https://beanconqueror.com/?shareUserBean0=... — the same
-      // format BC's own share service generates. Pasting this anywhere produces
-      // a tappable link; the beanconqueror.com site shows an "Open App" button.
-      navigator.clipboard.writeText(shareUrl)
+      const url = ProtobufModule.buildShareUrl(data);
+      navigator.clipboard.writeText(url)
         .then(() => Toast.show('Link copied — paste anywhere, then tap it to open Beanconqueror.', '', 5000))
         .catch(() => Toast.show('Copy failed — try on Android.', 'error'));
     } catch (err) {

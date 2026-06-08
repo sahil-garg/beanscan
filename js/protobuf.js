@@ -164,16 +164,9 @@ const ProtobufModule = (() => {
       params.push(`shareUserBean${i}=${base64.substr(i * CHUNK, CHUNK)}`);
     }
 
-    // Returns both URL forms:
-    // - deepLink: beanconqueror:// used by redirect.html to open BC directly
-    // - shareUrl: https://beanconqueror.com/ — the same format BC's own share
-    //   service generates; pasting this URL anywhere produces a tappable link
-    //   that opens the beanconqueror.com website, which shows an "Open App" button
-    const query = params.join('&');
-    return {
-      deepLink: 'beanconqueror://ADD_USER_BEAN?' + query,
-      shareUrl: 'https://beanconqueror.com/?' + query,
-    };
+    // Same URL format BC's own share service generates.
+    // Android routes https://beanconqueror.com URLs directly to BC via App Links.
+    return 'https://beanconqueror.com?' + params.join('&');
   }
 
   return { buildShareUrl };
