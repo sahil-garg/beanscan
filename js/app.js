@@ -227,13 +227,17 @@ function initActionButtons() {
 
     try {
       const url = ProtobufModule.buildShareUrl(data);
+      console.log('[BeanScan] BC deep link URL:', url);
 
-      // Navigate the current frame to the beanconqueror:// URL.
-      // Android intercepts custom-scheme navigation and routes it to BC
-      // without creating an extra Chrome Custom Tab on the back stack.
-      // A Custom Tab (via window.open _blank) leaves a pending back-press
-      // event that immediately dismisses BC's import modal.
-      window.location.href = url;
+      // Anchor-click is the most reliable way to trigger an Android intent
+      // from Chrome. window.open and window.location.href behave differently
+      // (Custom Tab / navigation-away) and cause BC's import modal to flash
+      // and dismiss or not open at all.
+      const a = document.createElement('a');
+      a.href = url;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
 
       Toast.show('Opening Beanconqueror…', '', 3000);
 
