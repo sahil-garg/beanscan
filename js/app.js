@@ -227,10 +227,10 @@ function initActionButtons() {
 
     try {
       const url = ProtobufModule.buildShareUrl(data);
-      window.open(url, '_blank');
 
-      // Session 5 will append the Sheets row here
-      Toast.show('Opening Beanconqueror…', '', 4000);
+      // Navigate current tab — more reliable than window.open for triggering
+      // Android's App Link intent handler for beanconqueror.com
+      window.location.href = url;
 
       // Remind user to set frozen fields manually in BC (they can't go via deep link)
       if (data.frozen?.isFrozen) {

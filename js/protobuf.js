@@ -164,8 +164,10 @@ const ProtobufModule = (() => {
       params.push(`shareUserBean${i}=${base64.substr(i * CHUNK, CHUNK)}`);
     }
 
-    // No www, no trailing slash, no path — matches BC's intent handler exactly
-    return 'https://beanconqueror.com?' + params.join('&');
+    // Use BC's custom URL scheme — bypasses the beanconqueror.com website and
+    // goes directly to the app via Android's intent system. The https:// form
+    // requires Android App Links verification which may not be set up on all devices.
+    return 'beanconqueror://ADD_USER_BEAN?' + params.join('&');
   }
 
   return { buildShareUrl };
