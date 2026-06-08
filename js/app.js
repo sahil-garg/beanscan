@@ -226,22 +226,14 @@ function initActionButtons() {
     }
 
     try {
-      const { deepLink, shareUrl } = ProtobufModule.buildShareUrl(data);
-      console.log('[BeanScan] BC deep link:', deepLink);
+      const { shareUrl } = ProtobufModule.buildShareUrl(data);
       console.log('[BeanScan] BC share URL:', shareUrl);
 
-      // Pass the beanconqueror:// URL through a redirect page that lives on
-      // our own domain. When Chrome opens beanconqueror:// directly in a
-      // Custom Tab, the tab "fails to load" (not an HTTP URL) and fires a
-      // CANCELED result back to the opener. Chrome interprets that as a back
-      // press, which reaches BC and immediately dismisses the import modal.
-      //
-      // redirect.html loads as a real HTTP 200 page and then uses
-      // location.replace() to jump to beanconqueror://. Chrome sees a
-      // successful page that did a redirect — no CANCELED result, no back
-      // press, import modal stays open.
-      const redirectBase = new URL('redirect.html', location.href).href;
-      window.open(redirectBase + '#' + deepLink, '_blank');
+      // Use https://beanconqueror.com?shareUserBean0=... — the same format
+      // BC's own share service generates. Android routes this URL directly to
+      // BC via App Links (no Chrome Custom Tab intermediary), which avoids
+      // the CCT back-press that was immediately dismissing the import modal.
+      window.open(shareUrl, '_blank');
 
       Toast.show('Opening Beanconqueror…', '', 3000);
 
