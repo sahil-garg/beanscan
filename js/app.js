@@ -162,10 +162,12 @@ function initCapturePipeline() {
 
       // Parse OCR text → structured fields → pre-fill the review form
       let parsed;
+      let llmUsed = false;
       if (SettingsModule.isLLMEnabled()) {
         OcrUI.setProgress('Parsing with AI…', 99);
         try {
           parsed = await LLMParser.parse(result.text, SettingsModule.getAPIKey(), SettingsModule.getProxyUrl());
+          llmUsed = true;
         } catch (llmErr) {
           const msg = llmErr?.message ?? String(llmErr);
           console.error('LLM parser failed:', llmErr);
@@ -179,6 +181,9 @@ function initCapturePipeline() {
       // Clear the progress bar now that parsing is complete
       document.getElementById('ocr-progress-bar')?.classList.add('hidden');
       document.getElementById('ocr-progress-fill').style.width = '0%';
+      if (llmUsed) {
+        document.getElementById('ocr-status').textContent = '✓ AI parsing complete — review and edit fields below.';
+      }
     } catch (err) {
       if (scanId !== thisScan) return;
       // err may be a string, object, or Error — normalise defensively
