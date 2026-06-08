@@ -228,10 +228,12 @@ function initActionButtons() {
     try {
       const url = ProtobufModule.buildShareUrl(data);
 
-      // window.open with _blank forces a Chrome Custom Tab (full Chrome context),
-      // bypassing the PWA standalone shell which doesn't pass custom scheme URLs
-      // to Android's intent system reliably.
-      window.open(url, '_blank');
+      // Navigate the current frame to the beanconqueror:// URL.
+      // Android intercepts custom-scheme navigation and routes it to BC
+      // without creating an extra Chrome Custom Tab on the back stack.
+      // A Custom Tab (via window.open _blank) leaves a pending back-press
+      // event that immediately dismisses BC's import modal.
+      window.location.href = url;
 
       Toast.show('Opening Beanconqueror…', '', 3000);
 
