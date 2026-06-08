@@ -70,6 +70,52 @@ const ProtobufModule = (() => {
     return ldField(fieldNum, _enc.encode(String(value)));
   }
 
+  // ── "Always emit" variants ──────────────────────────────────────
+  // Beanconqueror's OWN share encoder writes these fields even when empty/zero,
+  // and its import code reads the resulting objects WITHOUT null-checks
+  // (e.g. protoBean.cupped_flavor.predefined_flavors). If we omit them, BC's
+  // BeanProto.decode() leaves the field undefined, the property access throws,
+  // BC swallows the error, and the app lands on the homepage with no modal.
+  // So we must mirror BC's field set exactly. Verified against a real BC link.
+
+  // String emitted even when empty (tag + length + bytes; length may be 0)
+  function strFieldAlways(fieldNum, value) {
+    const bytes = _enc.encode(String(value ?? ''));
+    return concat(
+      encodeVarint((fieldNum << 3) | 2),
+      encodeVarint(bytes.length),
+      bytes,
+    );
+  }
+
+  // Varint emitted even when 0
+  function varintFieldAlways(fieldNum, value) {
+    return concat(
+      encodeVarint((fieldNum << 3) | 0),
+      encodeVarint(Number(value) || 0),
+    );
+  }
+
+  // Bool emitted even when false
+  function boolFieldAlways(fieldNum, value) {
+    return concat(
+      encodeVarint((fieldNum << 3) | 0),
+      new Uint8Array([value ? 1 : 0]),
+    );
+  }
+
+  // Length-delimited field that is emitted even with zero-length payload.
+  // For sub-messages this forces the decoder to instantiate an (empty) object
+  // so BC can safely read its properties.
+  function ldFieldAlways(fieldNum, bytes) {
+    bytes = bytes || new Uint8Array(0);
+    return concat(
+      encodeVarint((fieldNum << 3) | 2),
+      encodeVarint(bytes.length),
+      bytes,
+    );
+  }
+
   // ── Message encoders ────────────────────────────────────────────
 
   function encodeBeanInformation(info) {
@@ -88,45 +134,60 @@ const ProtobufModule = (() => {
   }
 
   function encodeBeanProto(bean) {
+    // We mirror Beanconqueror's own share encoder field-for-field. BC writes
+    // every field below (even empty ones) and its import reads them without
+    // guards, so anything we omit can crash the import. Field order follows
+    // proto field numbers. (buyDate=2, attachments=15 and external_images=29
+    // are the only ones BC omits when empty — we emit 2 & 29 only when set.)
     const parts = [
-      // Fields in proto field-number order
-      strField(1,   bean.name),          // required
-      strField(2,   bean.buyDate),
-      strField(3,   bean.roastingDate),
-      strField(4,   bean.note),
-      strField(5,   bean.roaster),
-      // 6 = config     — not set (BC regenerates on import)
-      varintField(7,  bean.roast),
-      // 8 = roast_range — not used
-      varintField(9,  bean.beanMix),
-      strField(10,  bean.roast_custom),
-      strField(11,  bean.aromatics),
-      varintField(12, bean.weight),
-      // 13 = finished  — not set
-      varintField(14, bean.cost),
-      // 15 = attachments — not set
-      strField(16,  bean.cupping_points),
-      boolField(17, bean.decaffeinated),
-      strField(18,  bean.url),
-      strField(19,  bean.ean_article_number),
-      // 20 = rating    — not set
+      strFieldAlways(1,  bean.name),               // required
     ];
 
-    // Repeated BeanInformation (field 21) — one entry per origin
-    if (Array.isArray(bean.bean_information)) {
-      for (const info of bean.bean_information) {
-        const encoded = encodeBeanInformation(info);
-        if (encoded.length) parts.push(ldField(21, encoded));
-      }
+    if (bean.buyDate) parts.push(strFieldAlways(2, bean.buyDate));
+
+    parts.push(
+      strFieldAlways(3,  bean.roastingDate),
+      strFieldAlways(4,  bean.note),
+      strFieldAlways(5,  bean.roaster),
+      ldFieldAlways(6,   null),                    // config (empty — BC regenerates uuid)
+      varintFieldAlways(7,  bean.roast),
+      varintFieldAlways(8,  0),                    // roast_range
+      varintFieldAlways(9,  bean.beanMix),
+      strFieldAlways(10, bean.roast_custom),
+      strFieldAlways(11, bean.aromatics),
+      varintFieldAlways(12, bean.weight),
+      boolFieldAlways(13, false),                  // finished
+      varintFieldAlways(14, bean.cost),
+      strFieldAlways(16, bean.cupping_points),
+      boolFieldAlways(17, bean.decaffeinated),
+      strFieldAlways(18, bean.url),
+      strFieldAlways(19, bean.ean_article_number),
+      varintFieldAlways(20, 0),                    // rating
+    );
+
+    // BeanInformation (field 21) — one entry per origin. Always emit at least
+    // one (empty) entry, exactly like BC, so import's bean_information[0] exists.
+    const infos = (Array.isArray(bean.bean_information) && bean.bean_information.length)
+      ? bean.bean_information
+      : [{}];
+    for (const info of infos) {
+      parts.push(ldFieldAlways(21, encodeBeanInformation(info)));
     }
 
-    parts.push(varintField(22, bean.bean_roasting_type));
-    // 23–28 = roast info, qr_code, favourite, shared, cupping — not set
+    parts.push(
+      varintFieldAlways(22, bean.bean_roasting_type),
+      ldFieldAlways(23, null),                     // bean_roast_information (empty)
+      strFieldAlways(24, ''),                      // qr_code
+      boolFieldAlways(25, false),                  // favourite
+      boolFieldAlways(26, false),                  // shared
+      ldFieldAlways(27, null),                     // cupping (empty)
+      ldFieldAlways(28, null),                     // cupped_flavor (empty)
+    );
 
-    // Repeated external_images (field 29) — Drive URLs for bag photo
+    // external_images (field 29) — Drive URLs for the bag photo, when present
     if (Array.isArray(bean.external_images)) {
       for (const imgUrl of bean.external_images) {
-        if (imgUrl) parts.push(strField(29, imgUrl));
+        if (imgUrl) parts.push(strFieldAlways(29, imgUrl));
       }
     }
 
