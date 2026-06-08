@@ -1,0 +1,13 @@
+{
+  "name": "beanscan",
+  "version": "0.1.0",
+  "description": "PWA companion for Beanconqueror — scan coffee bags, import beans",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node test/verify-encoding.mjs"
+  },
+  "devDependencies": {
+    "protobufjs": "^8.6.1"
+  }
+}

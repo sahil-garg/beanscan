@@ -218,7 +218,7 @@ function initActionButtons() {
   const btnBC    = document.getElementById('btn-add-bc');
   const btnSheet = document.getElementById('btn-add-sheet');
 
-  btnBC?.addEventListener('click', async () => {
+  btnBC?.addEventListener('click', () => {
     const data = FormModule.read();
     if (!data.name) {
       Toast.show('Please enter a bean name first.', 'error');
@@ -229,23 +229,22 @@ function initActionButtons() {
       const url = ProtobufModule.buildShareUrl(data);
       console.log('[BeanScan] BC share URL:', url);
 
-      // navigator.share() triggers Android's native share sheet.
-      // BC appears as an option because it registers as an App Link handler
-      // for beanconqueror.com — the same way BC's own website shares URLs.
-      if (navigator.share) {
-        await navigator.share({ url });
-      } else {
-        // Desktop / browsers without share API: open directly
-        window.open(url, '_blank');
-      }
+      // Open BC's own share URL in the browser. This lands on Beanconqueror's
+      // web warning page, which has an "Import Now" button that launches the
+      // native app with the bean. We deliberately route through BC's website
+      // rather than firing beanconqueror:// ourselves — BC's web page is the
+      // proven bridge (it works whether or not the app is already running,
+      // and avoids the Chrome-Custom-Tab back-press that dismissed the modal).
+      window.open(url, '_blank');
+
+      Toast.show('On the Beanconqueror page, tap “Import Now”.', '', 5000);
 
       if (data.frozen?.isFrozen) {
         setTimeout(() => {
           Toast.show('Remember to set frozen storage details manually in Beanconqueror.', '', 6000);
-        }, 500);
+        }, 5200);
       }
     } catch (err) {
-      if (err.name === 'AbortError') return; // User dismissed share sheet — not an error
       console.error('BC export failed:', err);
       Toast.show(`Export failed: ${err.message}`, 'error', 6000);
     }
