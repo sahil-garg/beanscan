@@ -226,8 +226,9 @@ function initActionButtons() {
     }
 
     try {
-      const bcUrl = ProtobufModule.buildShareUrl(data);
-      console.log('[BeanScan] BC deep link URL:', bcUrl);
+      const { deepLink, shareUrl } = ProtobufModule.buildShareUrl(data);
+      console.log('[BeanScan] BC deep link:', deepLink);
+      console.log('[BeanScan] BC share URL:', shareUrl);
 
       // Pass the beanconqueror:// URL through a redirect page that lives on
       // our own domain. When Chrome opens beanconqueror:// directly in a
@@ -240,7 +241,7 @@ function initActionButtons() {
       // successful page that did a redirect — no CANCELED result, no back
       // press, import modal stays open.
       const redirectBase = new URL('redirect.html', location.href).href;
-      window.open(redirectBase + '#' + bcUrl, '_blank');
+      window.open(redirectBase + '#' + deepLink, '_blank');
 
       Toast.show('Opening Beanconqueror…', '', 3000);
 
@@ -262,9 +263,12 @@ function initActionButtons() {
       return;
     }
     try {
-      const url = ProtobufModule.buildShareUrl(data);
-      navigator.clipboard.writeText(url)
-        .then(() => Toast.show('Link copied — paste in Chrome address bar to open Beanconqueror.', '', 5000))
+      const { shareUrl } = ProtobufModule.buildShareUrl(data);
+      // shareUrl is https://beanconqueror.com/?shareUserBean0=... — the same
+      // format BC's own share service generates. Pasting this anywhere produces
+      // a tappable link; the beanconqueror.com site shows an "Open App" button.
+      navigator.clipboard.writeText(shareUrl)
+        .then(() => Toast.show('Link copied — paste anywhere, then tap it to open Beanconqueror.', '', 5000))
         .catch(() => Toast.show('Copy failed — try on Android.', 'error'));
     } catch (err) {
       Toast.show(`Error: ${err.message}`, 'error');

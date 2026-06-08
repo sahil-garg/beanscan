@@ -164,9 +164,16 @@ const ProtobufModule = (() => {
       params.push(`shareUserBean${i}=${base64.substr(i * CHUNK, CHUNK)}`);
     }
 
-    // BC's custom URL scheme — registered in AndroidManifest.xml and handled
-    // by IntentHandlerService. Works in Chrome and most Android browsers.
-    return 'beanconqueror://ADD_USER_BEAN?' + params.join('&');
+    // Returns both URL forms:
+    // - deepLink: beanconqueror:// used by redirect.html to open BC directly
+    // - shareUrl: https://beanconqueror.com/ — the same format BC's own share
+    //   service generates; pasting this URL anywhere produces a tappable link
+    //   that opens the beanconqueror.com website, which shows an "Open App" button
+    const query = params.join('&');
+    return {
+      deepLink: 'beanconqueror://ADD_USER_BEAN?' + query,
+      shareUrl: 'https://beanconqueror.com/?' + query,
+    };
   }
 
   return { buildShareUrl };
