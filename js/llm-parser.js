@@ -72,8 +72,8 @@ Rules:
 }
 
 // Resize image to fit within maxDim on the longest side, return base64 JPEG.
-// Keeps token cost reasonable while preserving enough detail for text reading.
-async function resizeToBase64(file, maxDim = 1568) {
+// 1024px keeps image tokens low (~1400 tokens) while preserving text legibility.
+async function resizeToBase64(file, maxDim = 1024) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -113,7 +113,7 @@ const LLMParserModule = (() => {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 1500,
         system: SYSTEM_PROMPT,
         messages: [{
@@ -167,7 +167,7 @@ const LLMParserModule = (() => {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 1500,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: `OCR text from a coffee bag:\n\n${ocrText}\n\n${buildPrompt()}` }],
