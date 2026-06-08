@@ -1,4 +1,4 @@
-// Service Worker — BeanScan
+// Service Worker — BeanScan v2
 // Sessions 1-5: no caching — always fetch from network so JS updates
 // land on devices immediately without needing a cache version bump.
 // Session 6 will introduce proper offline caching with a versioned strategy.
@@ -15,6 +15,17 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // Pass every request straight to the network — no caching until Session 6
-  event.respondWith(fetch(event.request));
+  // cache:'reload' bypasses the browser's HTTP disk cache and always goes to
+  // the network. This ensures JS updates reach the device immediately.
+  // (Only applies to same-origin requests; external CDN calls pass through.)
+  const req = event.request;
+  if (req.method !== 'GET') return;
+
+  const url = new URL(req.url);
+  const isSameOrigin = url.origin === self.location.origin;
+
+  if (isSameOrigin) {
+    event.respondWith(fetch(req, { cache: 'reload' }));
+  }
+  // Cross-origin requests (Tesseract CDN, etc.) fall through to the browser.
 });
