@@ -161,16 +161,12 @@ const ProtobufModule = (() => {
     const loops = Math.ceil(base64.length / CHUNK);
     const params = [];
     for (let i = 0; i < loops; i++) {
-      params.push(`shareUserBean${i}=${encodeURIComponent(base64.substr(i * CHUNK, CHUNK))}`);
+      params.push(`shareUserBean${i}=${base64.substr(i * CHUNK, CHUNK)}`);
     }
 
-    // Android intent:// URL — most explicit deep link form.
-    // Chrome constructs an intent with data=beanconqueror://ADD_USER_BEAN?...
-    // targeting BC's package directly, bypassing both the website and any
-    // App Links verification issues. encodeURIComponent prevents ambiguity
-    // with base64 + and = chars in the query string.
-    return 'intent://ADD_USER_BEAN?' + params.join('&') +
-      '#Intent;scheme=beanconqueror;package=com.beanconqueror.app;end';
+    // BC's custom URL scheme — registered in AndroidManifest.xml and handled
+    // by IntentHandlerService. Works in Chrome and most Android browsers.
+    return 'beanconqueror://ADD_USER_BEAN?' + params.join('&');
   }
 
   return { buildShareUrl };

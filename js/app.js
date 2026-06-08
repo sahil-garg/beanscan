@@ -228,19 +228,40 @@ function initActionButtons() {
     try {
       const url = ProtobufModule.buildShareUrl(data);
 
-      // Navigate current tab — more reliable than window.open for triggering
-      // Android's App Link intent handler for beanconqueror.com
-      window.location.href = url;
+      // Anchor click is the most compatible way to open custom URL schemes
+      // across Android browsers — avoids issues with JS navigation in Ecosia etc.
+      const a = document.createElement('a');
+      a.href = url;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => a.remove(), 500);
 
-      // Remind user to set frozen fields manually in BC (they can't go via deep link)
+      Toast.show('Opening Beanconqueror…', '', 3000);
+
       if (data.frozen?.isFrozen) {
         setTimeout(() => {
           Toast.show('Remember to set frozen storage details manually in Beanconqueror.', '', 6000);
-        }, 4500);
+        }, 3500);
       }
     } catch (err) {
       console.error('Protobuf encode failed:', err);
       Toast.show(`Export failed: ${err.message}`, 'error', 6000);
+    }
+  });
+
+  document.getElementById('btn-copy-link')?.addEventListener('click', () => {
+    const data = FormModule.read();
+    if (!data.name) {
+      Toast.show('Please enter a bean name first.', 'error');
+      return;
+    }
+    try {
+      const url = ProtobufModule.buildShareUrl(data);
+      navigator.clipboard.writeText(url)
+        .then(() => Toast.show('Link copied — paste in Chrome address bar to open Beanconqueror.', '', 5000))
+        .catch(() => Toast.show('Copy failed — try on Android.', 'error'));
+    } catch (err) {
+      Toast.show(`Error: ${err.message}`, 'error');
     }
   });
 
