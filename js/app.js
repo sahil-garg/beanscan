@@ -134,7 +134,7 @@ const OcrUI = (() => {
 })();
 
 // ----------------------------------------------------------------
-// Camera → OCR → form pipeline
+// Camera → parse → form pipeline
 // ----------------------------------------------------------------
 function initCapturePipeline() {
   let scanId = 0;
@@ -147,44 +147,55 @@ function initCapturePipeline() {
 
     const thisScan = ++scanId;
 
-    // Show immediately (synchronous) so we know the callback fired
-    OcrUI.setProgress('Photo received — starting OCR…', 1);
-
     try {
-      const result = await OCRModule.recognize(file, (label, pct) => {
-        if (scanId !== thisScan) return;
-        OcrUI.setProgress(label, pct);
-      });
-
-      if (scanId !== thisScan) return;
-
-      OcrUI.showResult(result.text, result.confidence, result.wordCount);
-
-      // Parse OCR text → structured fields → pre-fill the review form
-      // LLM-only branch: Sonnet is the sole parser. Heuristic fallback removed
-      // so failures surface clearly during testing.
       let parsed;
+
       if (SettingsModule.isLLMEnabled()) {
-        OcrUI.setProgress('Parsing with AI (Sonnet)…', 99);
-        parsed = await LLMParser.parse(result.text, SettingsModule.getAPIKey(), SettingsModule.getProxyUrl());
+        // Vision path: send image directly to Claude — no OCR step
+        OcrUI.setProgress('Reading bag with AI…', 30);
+
+        parsed = await LLMParser.parseImage(
+          file,
+          SettingsModule.getAPIKey(),
+          SettingsModule.getProxyUrl(),
+        );
+
+        if (scanId !== thisScan) return;
+
         FormModule.populate(parsed);
         document.getElementById('ocr-progress-bar')?.classList.add('hidden');
         document.getElementById('ocr-progress-fill').style.width = '0%';
-        document.getElementById('ocr-status').textContent = '✓ AI parsing complete — review and edit fields below.';
+        document.getElementById('ocr-status').textContent = '✓ AI vision complete — review and edit fields below.';
+        // Hide the raw OCR text section (no OCR was run)
+        document.getElementById('ocr-output-section')?.classList.add('hidden');
+
       } else {
+        // OCR path: Tesseract + heuristic parser
+        OcrUI.setProgress('Photo received — starting OCR…', 1);
+
+        const result = await OCRModule.recognize(file, (label, pct) => {
+          if (scanId !== thisScan) return;
+          OcrUI.setProgress(label, pct);
+        });
+
+        if (scanId !== thisScan) return;
+
+        OcrUI.showResult(result.text, result.confidence, result.wordCount);
         parsed = ParserModule.parse(result.text);
         FormModule.populate(parsed);
         document.getElementById('ocr-progress-bar')?.classList.add('hidden');
         document.getElementById('ocr-progress-fill').style.width = '0%';
       }
+
     } catch (err) {
       if (scanId !== thisScan) return;
-      // err may be a string, object, or Error — normalise defensively
       const errMsg = err?.message ?? String(err) ?? 'Unknown error';
-      console.error('OCR failed:', err);
-      const msg = errMsg.toLowerCase().includes('not loaded')
-        ? 'OCR engine not loaded yet — please wait a moment and retake.'
-        : `OCR error: ${errMsg}`;
+      console.error('Parse failed:', err);
+      const msg = SettingsModule.isLLMEnabled()
+        ? `AI vision failed: ${errMsg}`
+        : (errMsg.toLowerCase().includes('not loaded')
+            ? 'OCR engine not loaded yet — please wait a moment and retake.'
+            : `OCR error: ${errMsg}`);
       OcrUI.showError(msg);
       Toast.show(msg, 'error', 8000);
     }
