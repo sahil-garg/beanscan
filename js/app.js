@@ -4,12 +4,13 @@
  * Wires together camera, OCR, form, and (future) protobuf modules.
  */
 
-import CameraModule  from './camera.js';
-import FormModule    from './form.js';
-import OCRModule     from './ocr.js';
-import ParserModule  from './parser.js';
-import LLMParser     from './llm-parser.js';
+import CameraModule   from './camera.js';
+import FormModule     from './form.js';
+import OCRModule      from './ocr.js';
+import ParserModule   from './parser.js';
+import LLMParser      from './llm-parser.js';
 import SettingsModule from './settings.js';
+import ProtobufModule from './protobuf.js';
 
 // ----------------------------------------------------------------
 // Service worker registration
@@ -223,9 +224,24 @@ function initActionButtons() {
       Toast.show('Please enter a bean name first.', 'error');
       return;
     }
-    // Session 4: encode protobuf + open BC URL
-    Toast.show('Beanconqueror import coming in Session 4…');
-    console.log('Bean data to import:', data);
+
+    try {
+      const url = ProtobufModule.buildShareUrl(data);
+      window.open(url, '_blank');
+
+      // Session 5 will append the Sheets row here
+      Toast.show('Opening Beanconqueror…', '', 4000);
+
+      // Remind user to set frozen fields manually in BC (they can't go via deep link)
+      if (data.frozen?.isFrozen) {
+        setTimeout(() => {
+          Toast.show('Remember to set frozen storage details manually in Beanconqueror.', '', 6000);
+        }, 4500);
+      }
+    } catch (err) {
+      console.error('Protobuf encode failed:', err);
+      Toast.show(`Export failed: ${err.message}`, 'error', 6000);
+    }
   });
 
   btnSheet?.addEventListener('click', () => {
