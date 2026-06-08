@@ -228,13 +228,10 @@ function initActionButtons() {
     try {
       const url = ProtobufModule.buildShareUrl(data);
 
-      // Anchor click is the most compatible way to open custom URL schemes
-      // across Android browsers — avoids issues with JS navigation in Ecosia etc.
-      const a = document.createElement('a');
-      a.href = url;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => a.remove(), 500);
+      // window.open with _blank forces a Chrome Custom Tab (full Chrome context),
+      // bypassing the PWA standalone shell which doesn't pass custom scheme URLs
+      // to Android's intent system reliably.
+      window.open(url, '_blank');
 
       Toast.show('Opening Beanconqueror…', '', 3000);
 
