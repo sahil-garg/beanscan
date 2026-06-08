@@ -226,18 +226,21 @@ function initActionButtons() {
     }
 
     try {
-      const url = ProtobufModule.buildShareUrl(data);
-      console.log('[BeanScan] BC deep link URL:', url);
+      const bcUrl = ProtobufModule.buildShareUrl(data);
+      console.log('[BeanScan] BC deep link URL:', bcUrl);
 
-      // Anchor-click is the most reliable way to trigger an Android intent
-      // from Chrome. window.open and window.location.href behave differently
-      // (Custom Tab / navigation-away) and cause BC's import modal to flash
-      // and dismiss or not open at all.
-      const a = document.createElement('a');
-      a.href = url;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      // Pass the beanconqueror:// URL through a redirect page that lives on
+      // our own domain. When Chrome opens beanconqueror:// directly in a
+      // Custom Tab, the tab "fails to load" (not an HTTP URL) and fires a
+      // CANCELED result back to the opener. Chrome interprets that as a back
+      // press, which reaches BC and immediately dismisses the import modal.
+      //
+      // redirect.html loads as a real HTTP 200 page and then uses
+      // location.replace() to jump to beanconqueror://. Chrome sees a
+      // successful page that did a redirect — no CANCELED result, no back
+      // press, import modal stays open.
+      const redirectBase = new URL('redirect.html', location.href).href;
+      window.open(redirectBase + '#' + bcUrl, '_blank');
 
       Toast.show('Opening Beanconqueror…', '', 3000);
 
