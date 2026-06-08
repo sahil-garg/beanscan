@@ -161,28 +161,21 @@ function initCapturePipeline() {
       OcrUI.showResult(result.text, result.confidence, result.wordCount);
 
       // Parse OCR text → structured fields → pre-fill the review form
+      // LLM-only branch: Sonnet is the sole parser. Heuristic fallback removed
+      // so failures surface clearly during testing.
       let parsed;
-      let llmUsed = false;
       if (SettingsModule.isLLMEnabled()) {
-        OcrUI.setProgress('Parsing with AI…', 99);
-        try {
-          parsed = await LLMParser.parse(result.text, SettingsModule.getAPIKey(), SettingsModule.getProxyUrl());
-          llmUsed = true;
-        } catch (llmErr) {
-          const msg = llmErr?.message ?? String(llmErr);
-          console.error('LLM parser failed:', llmErr);
-          OcrUI.showWarning(`⚠️ AI parsing failed: ${msg} — form filled with heuristic parser instead.`);
-          parsed = ParserModule.parse(result.text);
-        }
+        OcrUI.setProgress('Parsing with AI (Sonnet)…', 99);
+        parsed = await LLMParser.parse(result.text, SettingsModule.getAPIKey(), SettingsModule.getProxyUrl());
+        FormModule.populate(parsed);
+        document.getElementById('ocr-progress-bar')?.classList.add('hidden');
+        document.getElementById('ocr-progress-fill').style.width = '0%';
+        document.getElementById('ocr-status').textContent = '✓ AI parsing complete — review and edit fields below.';
       } else {
         parsed = ParserModule.parse(result.text);
-      }
-      FormModule.populate(parsed);
-      // Clear the progress bar now that parsing is complete
-      document.getElementById('ocr-progress-bar')?.classList.add('hidden');
-      document.getElementById('ocr-progress-fill').style.width = '0%';
-      if (llmUsed) {
-        document.getElementById('ocr-status').textContent = '✓ AI parsing complete — review and edit fields below.';
+        FormModule.populate(parsed);
+        document.getElementById('ocr-progress-bar')?.classList.add('hidden');
+        document.getElementById('ocr-progress-fill').style.width = '0%';
       }
     } catch (err) {
       if (scanId !== thisScan) return;
